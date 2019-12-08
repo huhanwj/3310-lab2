@@ -1,4 +1,3 @@
-#pragma once
 #ifndef _SERVER_H
 #define _SERVER_H
 
@@ -17,7 +16,7 @@ typedef enum SERVER_STATE_tag
     SHUTDOWN = 5
 }Server_State_T;
 
-bool checkFile(const char* fileName);
-int checkDirectory(string dir);
-int getDirectory(string dir, vector<string>& files);
+bool checkFile(const char *fileName);
+int checkDirectory (string dir);
+int getDirectory (string dir, vector<string> &files);
 #endif
