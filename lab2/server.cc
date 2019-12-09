@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
 					const char* error_back; // existance checking msg
 					const char* cmd_back; // existance checking condition
 					if(exist){
+						cout <<" - file ./backup/"<<server.filename<< " exist; overwrite?\n";
 						cmd_back=to_string(server.cmd).c_str();// sending back the condition
 						sendto(sk,cmd_back,strlen(cmd_back),0,(struct sockaddr*)&remote,sizeof(remote));
 						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
@@ -196,9 +197,12 @@ int main(int argc, char *argv[])
 						buf[mesglen]='\0';
 						server.error=atoi(buf);
 						if(server.error==2){//not to overwrite
+							cout<<" - do not overwrite.\n";
 							server_state=WAITING;
 							break;
 						}
+						else
+							cout<<" - overwrite the file";
 					}
 					cmd_back=to_string(server.cmd).c_str();// sending back the condition
 					sendto(sk,cmd_back,strlen(cmd_back),0,(struct sockaddr*)&remote,sizeof(remote));
