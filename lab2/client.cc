@@ -23,9 +23,9 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-    unsigned short udp_port = 0;
-    const char* server_host = "127.0.0.1";
-    //process input arguments
+	unsigned short udp_port = 0;
+	const char* server_host = "127.0.0.1";
+	//process input arguments
 	if ((argc != 3) && (argc != 5))
 	{
 		cout << "Usage: " << argv[0];
@@ -44,20 +44,20 @@ int main(int argc, char *argv[])
 				server_host = argv[++i];
 				if (argc == 3)
 				{
-				    cout << "Usage: " << argv[0];
-		            cout << " [-s <server_host>] -p <udp_port>" << endl;
-		            return 1;
+					cout << "Usage: " << argv[0];
+					cout << " [-s <server_host>] -p <udp_port>" << endl;
+					return 1;
 				}
-		    }
-	        else
-	        {
-	            cout << "Usage: " << argv[0];
-		        cout << " [-s <server_host>] -p <udp_port>" << endl;
-		        return 1;
-	        }
+			}
+			else
+			{
+				cout << "Usage: " << argv[0];
+				cout << " [-s <server_host>] -p <udp_port>" << endl;
+				return 1;
+			}
 		}
 	}
-    int sock; // socket descriptor
+	int sock; // socket descriptor
 	sockaddr_in remote; // socket address for remote side
 	sockaddr_in local; //socket address for local side
 	char buf[BUFLEN]; // buffer for response from remote
@@ -66,103 +66,249 @@ int main(int argc, char *argv[])
 	// create the socket
 	sock=socket(AF_INET, SOCK_DGRAM, 0);
 	// error handling
-    if(sock<0){
-        perror("socket creation failed");
-        exit(EXIT_FAILURE);
-    }
+	if(sock<0){
+		perror("socket creation failed");
+		exit(EXIT_FAILURE);
+	}
 	// designate the addressing family
-    remote.sin_family=AF_INET;
+	remote.sin_family=AF_INET;
 	// get the address from the remote host and store
-	hp=gethostbyname(argv[1]);
+	hp=gethostbyname(server_host);
 	memcpy(&remote.sin_family, hp->h_addr, hp->h_length);
-	remote.sin_port=atoi(argv[2]);
+	remote.sin_port=udp_port;
 
 	Client_State_T client_state = WAITING;
 	string in_cmd;
+	Cmd_Msg_T client;
 	while(true)
 	{
-	    usleep(100);
-	    switch(client_state)
-	    {
-	        case WAITING:
-	        {
-	            cout<<"$ ";
-	            cin>>in_cmd;
+		usleep(100);
+		switch(client_state)
+		{
+			case WAITING:
+			{
+				cout<<"$ ";
+				cin>>in_cmd;
 				
-	            if(in_cmd == "ls")
-	            {
+				if(in_cmd == "ls")
+				{
+					client.cmd=CMD_LS;
 					const char* convert_cmd=to_string(CMD_LS).c_str();
-	            	// send the command to the remote side
-					sendto(sock, convert_cmd, strlen(convert_cmd),0,(struct sockaddr*)&remote, sizeof(remote));
-	                client_state = PROCESS_LS;
-	            }
-	            else if(in_cmd == "send")
-	            {
-	                client_state = PROCESS_SEND;
-	            }
-	            else if(in_cmd == "remove")
-	            {
-	                client_state = PROCESS_REMOVE;
-	            }
-	            else if(in_cmd == "shutdown")
-	            {
-	                client_state = SHUTDOWN;
-	            }
-	            else if(in_cmd == "quit")
-	            {
-	                client_state = QUIT;
-	            }
-	            else
-	            {
-	                cout<<" - wrong command."<<endl;
-	                client_state = WAITING;
-	            }
-	            break;
-	        }
-	        case PROCESS_LS:
-	        {  
-				int size=0; // received msg from server, size of the file list
+					// send the command to the remote side
+					sendto(sock,convert_cmd,strlen(convert_cmd),0,(struct sockaddr*)&remote,sizeof(remote));
+					client_state = PROCESS_LS;
+				}
+				else if(in_cmd == "send")
+				{
+					client.cmd=CMD_SEND;
+					const char* convert_cmd=to_string(CMD_SEND).c_str();
+					// send the command to the remote side
+					sendto(sock,convert_cmd,strlen(convert_cmd),0,(struct sockaddr*)&remote,sizeof(remote));
+					client_state = PROCESS_SEND;
+				}
+				else if(in_cmd == "remove")
+				{
+					client_state = PROCESS_REMOVE;
+				}
+				else if(in_cmd == "shutdown")
+				{
+					client_state = SHUTDOWN;
+				}
+				else if(in_cmd == "quit")
+				{
+					client_state = QUIT;
+				}
+				else
+				{
+					cout<<" - wrong command."<<endl;
+					client_state = WAITING;
+				}
+				break;
+			}
+			case PROCESS_LS:
+			{  
 				msglen=read(sock,buf,BUFLEN); //read the msg from server
 				buf[msglen]='\0';
-				size=atoi(buf); // convert the received string to int
-				if(!size){ //size=0
-					cout << " - server backup folder is empty.";
+				int current=atoi(buf);
+				if(current!=CMD_LS){ //bad first cmd back, not ls
+					cout << " - error or incorrect response from server.\n";
+					client.error=1;
+					const char* error_terminate=to_string(client.error).c_str();
+					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client_state=WAITING;
+					break;
+				}
+				else{
+					client.error=0;
+					const char* error_terminate=to_string(client.error).c_str();
+					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+				}
+				msglen=read(sock,buf,BUFLEN); //read the msg from server
+				buf[msglen]='\0';
+				client.size=atoi(buf); // convert the received string to int, received msg from server, size of the file list
+				if(!client.size){ //size=0
+					cout << " - Server backup folder is empty.\n";
 				}
 				else{ // read the filename and print it out
-					for(int i=0;i<size;i++){
+					for(int i=0;i<client.size;i++){
 						msglen=read(sock,buf,BUFLEN);
 						buf[msglen]='\0';
 						cout << " - filename: " << buf << "\n";
 					}
 				}
-		        client_state = WAITING;
-	            break;
-	        }
-	        case PROCESS_SEND:
-	        {
-	            
-		        client_state = WAITING;
-		        break;
-	        }
-	        case PROCESS_REMOVE:
-	        {	           
-	            client_state = WAITING;
-	            break;
-	        }	
-	        case SHUTDOWN:
-	        {	            
-	            break;	            
-	        }
-	        case QUIT:
-	        {	         
-	        }
-	        default:
-	        {
-	        	client_state = WAITING;
-	            break;
-	        }    
-	    }
+				client_state = WAITING;
+				break;
+			}
+			case PROCESS_SEND:
+			{
+				const char* error_send;
+				const char* filesize_send;
+				const char* filename_send;
+				const char* port_send;
+				int overwrite=0;
+				cin >> client.filename;
+				FILE* upload_file=fopen(client.filename,"r+");
+				if(upload_file){
+					fseek(upload_file,0,SEEK_END);// using fseek to go through the file
+					client.size=ftell(upload_file); // using ftell to tell the size of file
+					error_send=to_string(client.error).c_str(); //send the error
+					sendto(sock,error_send,strlen(error_send),0,(struct sockaddr*)&remote,sizeof(remote));
+					filename_send=client.filename; //send the filename
+					sendto(sock,filename_send,strlen(filename_send),0,(struct sockaddr*)&remote,sizeof(remote));
+					filesize_send=to_string(client.size).c_str(); //send the filesize
+					sendto(sock,filesize_send,strlen(filesize_send),0,(struct sockaddr*)&remote,sizeof(remote));
+					fseek(upload_file,0,SEEK_SET); //reset the file pointer to the starting point
+					msglen=read(sock,buf,BUFLEN); //error checking, bad first cmd back(not being send)
+					buf[msglen]='\0';
+					int current=atoi(buf);
+					if(current!=CMD_SEND){
+						cout << " - error or incorrect response from server.\n";
+						client.error=1;
+						const char* error_terminate=to_string(client.error).c_str();
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
+					else{
+						client.error=0;
+						const char* error_terminate=to_string(client.error).c_str();
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					}
+					msglen=read(sock,buf,BUFLEN);//read the back msg from server to check duplicate
+					buf[msglen]='\0';
+					client.error=atoi(buf);
+					if(client.error==2){
+						string choice;
+						cout<<" - file exists. overwrite? (y/n):";
+						cin >> choice;
+						if(choice=="y")
+							client.error=0;
+						else
+							client.error=2;
+						const char* overwrite_co=to_string(client.cmd).c_str();// send the cmd before the overwrite decision
+						sendto(sock,overwrite_co,strlen(overwrite_co),0,(struct sockaddr*)&remote,sizeof(remote));
+						msglen=read(sock,buf,BUFLEN);//check if error=1, cmd back is not send
+						buf[msglen]='\0';
+						if(atoi(buf)==1){
+							cout << " - error or incorrect response from server.\n";
+							fclose(upload_file);
+							client_state=WAITING;
+							break;
+						}
+						const char* overwrite_de=to_string(client.error).c_str();// send the user's overwrite decision to server
+						sendto(sock,overwrite_de,strlen(overwrite_de),0,(struct sockaddr*)&remote,sizeof(remote));
+						if(client.error==2){//not to overwrite
+							fclose(upload_file);
+							client_state=WAITING;
+							break;
+						}
+					}
+					msglen=read(sock,buf,BUFLEN);//check if back cmd is wrong
+					buf[msglen]='\0';
+					if(atoi(buf)!=CMD_SEND){
+						cout << " - error or incorrect response from server.\n";
+						client.error=1;
+						const char* error_terminate=to_string(client.error).c_str();
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
+					else{
+						client.error=0;
+						const char* error_terminate=to_string(client.error).c_str();
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					}
+					msglen=read(sock,buf,BUFLEN);//check if server file opening failed
+					buf[msglen]='\0';
+					if(atoi(buf)==1){
+						cout << " - error or incorrect response from server.\n";
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
+					msglen=read(sock,buf,BUFLEN);//get the allocated port number from the server
+					buf[msglen]='\0';
+					client.port=atoi(buf);
+					msglen=read(sock,buf,BUFLEN);//check if server socket accept failed
+					buf[msglen]='\0';
+					if(atoi(buf)==1){
+						cout << " - error or incorrect response from server.\n";
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
+					int tcp; //socket descriptor
+					sockaddr_in tcp_remote; //socket address for remote side
+					char tcp_buf[DATA_BUF_LEN];//buffer for response from remote
+					hostent *tp; //address for remote host;
+					int tcp_msglen;//length of the message
+					tcp=socket(AF_INET,SOCK_STREAM,0);//create the socket
+					tcp_remote.sin_family=AF_INET;//designate the addressing family
+					tp=gethostbyname(server_host);//get the address 
+					memcpy(&tcp_remote.sin_addr,tp->h_addr,tp->h_length) ;//store the address
+					tcp_remote.sin_port=client.port;
+					//connect to server 
+					if(connect(tcp,(struct sockaddr*)&tcp_remote,sizeof(tcp_remote))<0){//connection failed
+						cout << " - connection error!\n";
+						close(tcp);
+						client.error=1;
+						const char* error_terminate=to_string(client.error).c_str();//send error
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
+				}
+				else{
+					cout<<" - cannot open file: "<<client.filename<< "\n";
+					client.error=1;
+					error_send=to_string(client.error).c_str();
+					sendto(sock,error_send,strlen(error_send),0,(struct sockaddr*)&remote,sizeof(remote));
+				}
+				client_state = WAITING;
+				break;
+			}
+			case PROCESS_REMOVE:
+			{	           
+				client_state = WAITING;
+				break;
+			}	
+			case SHUTDOWN:
+			{	            
+				break;	            
+			}
+			case QUIT:
+			{	         
+			}
+			default:
+			{
+				client_state = WAITING;
+				break;
+			}    
+		}
 	}
 
-    return 0;
+	return 0;
 }

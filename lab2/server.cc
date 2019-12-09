@@ -70,9 +70,9 @@ int main(int argc, char *argv[])
 	getsockname(sk,(struct sockaddr *)&local, &local_len) ;
 	cout << "socket has port " << local.sin_port << "\n" ;
 	// cout << "socket has addr " << local.sin_addr .s_addr << "\n" ;
-	int cmd_i=0; // init no command received
-	int check=checkDirectory(Dir);
-	vector<string> backup_file;
+	int check=checkDirectory(Dir); //create the backup directory
+	vector<string> backup_file; //list of the backup files
+	Cmd_Msg_T server;
 	while(true)
 	{
 		usleep(100);
@@ -80,56 +80,204 @@ int main(int argc, char *argv[])
 		{
 			case WAITING:
 			{
+				server.cmd=0;
 				cout << "Waiting UDP Command @: " << udp_port;
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
-				cmd_i=atoi(buf);
-				if(cmd_i)
-					cout << "[CMD RECEIVED]: "<< cmd_string[cmd_i] << "\n";
-				switch (cmd_i)
+				server.cmd=atoi(buf);
+				if(server.cmd)
+					cout << "[CMD RECEIVED]: "<< cmd_string[server.cmd] << "\n";
+				switch (server.cmd)
 				{
 					case 1:
 					{
 						server_state = PROCESS_LS;
 						break;
 					}
-                    case 2:
-                    {
-                        server_state=PROCESS_SEND;
-                        break;
-                    }
-                    case 4:
-                    {
-                        server_state=PROCESS_REMOVE;
-                        break;
-                    }
-                    case 5:
-                    {
-                        server_state=SHUTDOWN;
-                        break;
-                    }
-                    default:
-                    {
-                        server_state=WAITING;
-                        break;
-                    }
+					case 2:
+					{
+						server_state=PROCESS_SEND;
+						break;
+					}
+					case 4:
+					{
+						server_state=PROCESS_REMOVE;
+						break;
+					}
+					case 5:
+					{
+						server_state=SHUTDOWN;
+						break;
+					}
+					default:
+					{
+						server_state=WAITING;
+						break;
+					}
 				}
 				break;
 			}
 			case PROCESS_LS:
 			{
-				cout << " - ";
+				server.size=backup_file.size();
+				const char* cmd_send=to_string(server.cmd).c_str();
+				sendto(sk,cmd_send,strlen(cmd_send),0,(struct sockaddr*)&remote,sizeof(remote));// back cmd msg
+				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
+				buf[mesglen]='\0';
+				if(atoi(buf)==1){
+					cout << " - error or incorrect command from client.\n";
+					server_state=WAITING;
+					break;
+				}
+				const char* size_send=to_string(server.size).c_str();
+				sendto(sk,size_send,strlen(size_send),0,(struct sockaddr*)&remote,sizeof(remote));// back size msg
+				const char* filename_send;
 				int get=getDirectory(Dir,backup_file);
-				int size=backup_file.size;
-				const char* msgsend=to_string(size).c_str();
-				if(!size)
-					cout << "server backup folder is empty.";
-				else
+				if(!server.size)
+					cout << " - Server backup folder is empty.";
+				else{
+					for(int i=0;i<server.size;i++){
+						cout << " - filename: " << backup_file[i] << "\n";
+						filename_send=backup_file[i].c_str();
+						sendto(sk,filename_send,strlen(filename_send),0,(struct sockaddr*)&remote,sizeof(remote));
+					}
+				}
 				server_state = WAITING;
 				break;
 			}
 			case PROCESS_SEND:
 			{
+				int overwrite=0;
+				bool exist=false;
+				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// first receive the error msg
+				buf[mesglen]='\0';
+				server.error=atoi(buf);
+				if(server.error==0){
+					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// then receive the filename
+					buf[mesglen]='\0';
+					strcpy(server.filename,buf);
+					cout << " - filename: "<<server.filename<<"\n";
+					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// then receive the filesize
+					buf[mesglen]='\0';
+					server.size=atoi(buf);
+					cout<<" - filesize: "<<server.size<<"\n";
+					exist=checkFile(server.filename);
+					const char* error_back; // existance checking msg
+					const char* cmd_back; // existance checking condition
+					if(exist){
+						cmd_back=to_string(server.cmd).c_str();// sending back the condition
+						sendto(sk,cmd_back,strlen(cmd_back),0,(struct sockaddr*)&remote,sizeof(remote));
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
+						buf[mesglen]='\0';
+						if(atoi(buf)==1){
+							cout << " - error or incorrect command from client.\n";
+							server_state=WAITING;
+							break;
+						}
+						server.error=2;
+						error_back=to_string(server.error).c_str();//send back the error=2
+						sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
+						buf[mesglen]='\0';
+						if(atoi(buf)!=CMD_SEND){
+							cout << " - error or incorrect command from client.\n";
+							server.error=1;
+							error_back=to_string(server.error).c_str();
+							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
+							server_state=WAITING;
+							break;
+						}
+						else{
+							server.error=0;
+							error_back=to_string(server.error).c_str();
+							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=0
+						}
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// receive the user's decision
+						buf[mesglen]='\0';
+						server.error=atoi(buf);
+						if(server.error==2){//not to overwrite
+							server_state=WAITING;
+							break;
+						}
+					}
+					cmd_back=to_string(server.cmd).c_str();// sending back the condition
+					sendto(sk,cmd_back,strlen(cmd_back),0,(struct sockaddr*)&remote,sizeof(remote));
+					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
+					buf[mesglen]='\0';
+					if(atoi(buf)==1){
+						cout << " - error or incorrect command from client.\n";
+						server_state=WAITING;
+						break;
+					}
+					error_back=to_string(server.error).c_str();// send back the error=0
+					sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));
+					FILE* backup=fopen((string("./backup")+string(server.filename)).c_str(),"w+");// open a new file in backup dir
+					if(!backup){
+						cout <<"open file "<<server.filename<<" error.\n";
+						server.error=1;
+						error_back=to_string(server.error).c_str();
+						sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
+						server_state=WAITING;
+						break;
+					}
+					else{
+						server.error=0;
+						error_back=to_string(server.error).c_str();
+						sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=0
+						int tcp,tcp2; // socket descriptors
+						sockaddr_in tcp_remote; // socket address for remote
+						sockaddr_in tcp_local; // socket address for us
+						char tcp_buf[DATA_BUF_LEN]; // buffer from remote
+						char tcp_retbuf[DATA_BUF_LEN]; //buffer to remote
+						int tcp_rlen = sizeof(tcp_remote) ; // length of remote address
+						socklen_t tcp_len = sizeof(tcp_local) ; // length of local address
+						int moredata = 1 ; // keep processing or quit
+						int tcp_mesglen ; // actual length of message
+						tcp=socket(AF_INET,SOCK_STREAM,0);// create the socket
+						tcp_local.sin_family = AF_INET ; // internet family
+						tcp_local.sin_addr.s_addr = INADDR_ANY ; // wild card machine address
+						tcp_local.sin_port = 0 ; // let system choose the port
+						// bind the name (address) to a port
+						bind(tcp,(struct sockaddr *)&tcp_local,sizeof(tcp_local)) ;
+						// get the port name and print it out
+						getsockname(tcp,(struct sockaddr *)&tcp_local,&tcp_len) ;
+						server.port=tcp_local.sin_port;
+						const char* port_back=to_string(server.port).c_str();
+						sendto(sk,port_back,strlen(port_back),0,(struct sockaddr*)&remote,sizeof(remote));
+						listen(tcp, 1);
+						// wait for connection request, then close old socket
+						tcp2 = accept(tcp, (struct sockaddr *)0, (socklen_t *)0) ;
+						close(tcp);
+						//accept failed
+						if(tcp2=-1){ 
+							cout << " - Connection failed!\n";
+							server.error=1;
+							error_back=to_string(server.error).c_str();
+							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
+							server_state=WAITING;
+							break;
+						}
+						//accept succeeded
+						else{
+							server.error=0;
+							error_back=to_string(server.error).c_str();
+							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=0
+						}
+						// error checking if client tcp connection failed
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+						buf[mesglen]='\0';
+						if(atoi(buf)==1){
+							cout << " - Connection failed!\n";
+							server_state=WAITING;
+							break;
+						}
+					}
+				}
+				else{// file open error at client side
+					cout << " - file open failure at client side.\n";
+					server_state=WAITING;
+					break;
+				}
 				server_state = WAITING;
 				break;
 			}
