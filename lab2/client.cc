@@ -259,6 +259,7 @@ int main(int argc, char *argv[])
 						client_state=WAITING;
 						break;
 					}
+					cout <<" - TCP port: "<<client.port<<"\n";
 					int tcp; //socket descriptor
 					sockaddr_in tcp_remote; //socket address for remote side
 					char tcp_buf[DATA_BUF_LEN];//buffer for response from remote
@@ -280,6 +281,42 @@ int main(int argc, char *argv[])
 						client_state=WAITING;
 						break;
 					}
+					bool keepread=true;
+					//read and send the file
+					while(keepread){
+						tcp_msglen=fread(tcp_buf,sizeof(char),DATA_BUF_LEN,upload_file);
+						if(tcp_msglen<DATA_BUF_LEN){
+							tcp_buf[tcp_msglen]='\0';
+							keepread=false;
+						}
+						write(tcp,tcp_buf,tcp_msglen);
+					}
+					fclose(upload_file);
+					close(tcp);
+					// check for ACK msg
+					msglen=read(sock,buf,BUFLEN);
+					buf[msglen]='\0';
+					//back cmd msg is not ACK
+					if(atoi(buf)!=CMD_ACK){
+						cout << " - error or incorrect response from server.\n";
+						client.error=1;
+						const char* error_terminate=to_string(client.error).c_str();
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+						client_state=WAITING;
+						break;
+					}
+					else{
+						client.error=0;
+						const char* error_terminate=to_string(client.error).c_str();
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					}
+					// check for back error msg
+					msglen=read(sock,buf,BUFLEN);
+					buf[msglen]='\0';
+					if(atoi(buf)==0)
+						cout<< " - file transmission is completed.\n";
+					else
+						cout<<" - file transmission is failed.\n";
 				}
 				else{
 					cout<<" - cannot open file: "<<client.filename<< "\n";

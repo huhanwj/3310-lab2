@@ -245,13 +245,15 @@ int main(int argc, char *argv[])
 						const char* port_back=to_string(server.port).c_str();
 						sendto(sk,port_back,strlen(port_back),0,(struct sockaddr*)&remote,sizeof(remote));
 						listen(tcp, 1);
+						cout <<" - listen @: " << server.port <<"\n";
 						// wait for connection request, then close old socket
 						tcp2 = accept(tcp, (struct sockaddr *)0, (socklen_t *)0) ;
 						close(tcp);
 						//accept failed
 						if(tcp2=-1){ 
-							cout << " - Connection failed!\n";
+							cout << " - server connection failed!\n";
 							server.error=1;
+							fclose(backup);
 							error_back=to_string(server.error).c_str();
 							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
 							server_state=WAITING;
@@ -259,6 +261,7 @@ int main(int argc, char *argv[])
 						}
 						//accept succeeded
 						else{
+							cout << " - connected with the client.\n";
 							server.error=0;
 							error_back=to_string(server.error).c_str();
 							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=0
@@ -267,9 +270,55 @@ int main(int argc, char *argv[])
 						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 						buf[mesglen]='\0';
 						if(atoi(buf)==1){
-							cout << " - Connection failed!\n";
+							cout << " - client connection failed!\n";
+							fclose(backup);
+							close(tcp2);
 							server_state=WAITING;
 							break;
+						}
+						// receive and write the file
+						bool keepwrite=true;
+						while(keepwrite){
+							tcp_mesglen=read(tcp2,tcp_buf,DATA_BUF_LEN);
+							cout << " - total bytes received: "<<tcp_mesglen<<"\n";
+							//if any message reception error happened, break the loop
+							if(tcp_mesglen<0){
+								cout << " - message reception error.\n";
+								break;
+							}
+							if(tcp_mesglen<DATA_BUF_LEN){
+								tcp_buf[tcp_mesglen]='\0';
+								keepwrite=false;
+							}
+							fwrite(tcp_buf,sizeof(char),tcp_mesglen,backup);
+						}
+						fclose(backup);
+						close(tcp2);
+						const char* ACK_back;
+						const char* ACK_error;
+						server.cmd=CMD_ACK;
+						ACK_back=to_string(server.cmd).c_str();
+						sendto(sk,ACK_back,strlen(ACK_back),0,(struct sockaddr*)&remote,sizeof(remote));
+						// error checking if client not receiving ACK
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+						if(atoi(buf)==1){
+							cout <<" - connection failed!\n";
+							server_state=WAITING;
+							break;
+						}
+						// send the error message to the client
+						if(!keepwrite){
+							cout << " - "<<server.filename<<" has been received.\n";
+							server.error=0;
+							ACK_error=to_string(server.error).c_str();
+							sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
+							cout<<"send acknowledgement.\n";	
+						}
+						else{
+							server.error=1;
+							ACK_error=to_string(server.error).c_str();
+							sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
+							cout<<"send acknowledgement.\n";	
 						}
 					}
 				}
