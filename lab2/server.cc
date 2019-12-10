@@ -273,9 +273,7 @@ int main(int argc, char *argv[])
 						cout <<" - listen @: " << server.port <<"\n";
 						// wait for connection request, then close old socket
 						tcp2 = accept(tcp, (struct sockaddr *)0, (socklen_t*)0) ;
-						cout<<"fuck\n";
 						close(tcp);
-						cout<<"fuck\n";
 						cout<<tcp2<<'\n';
 						//accept failed
 						if(tcp2==-1){ 
