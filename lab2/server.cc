@@ -68,7 +68,6 @@ int main(int argc, char *argv[])
 	bind(sk,(struct sockaddr *)&local,sizeof(local)) ;
 	// get the port name and print it out
 	getsockname(sk,(struct sockaddr *)&local, &local_len) ;
-	cout << "socket has port " << local.sin_port << "\n" ;
 	// cout << "socket has addr " << local.sin_addr .s_addr << "\n" ;
 	int check=checkDirectory(Dir); //create the backup directory
 	vector<string> backup_file; //list of the backup files
@@ -81,7 +80,7 @@ int main(int argc, char *argv[])
 			case WAITING:
 			{
 				server.cmd=0;
-				cout << "Waiting UDP Command @: " << udp_port<<"\n";
+				cout << "Waiting UDP Command @: " << local.sin_port<<"\n";
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
 				server.cmd=atoi(buf);
