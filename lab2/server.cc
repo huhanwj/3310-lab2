@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 			case WAITING:
 			{
 				server.cmd=0;
-				cout << " - Waiting UDP Command @: " << local.sin_port<<"\n";
+				cout << "Waiting UDP Command @: " << local.sin_port<<"\n";
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
 				server.cmd=atoi(buf);
@@ -123,12 +123,7 @@ int main(int argc, char *argv[])
 			}
 			case PROCESS_LS:
 			{
-<<<<<<< HEAD
 				vector<string> backup_file; //list of the backup files
-=======
-				server.size=backup_file.size();
-				cout <<"size: "<<server.size<<"\n";
->>>>>>> b5d3745270629093204a7aa08625140c42c706ad
 				const char* cmd_send=to_string(server.cmd).c_str();
 				sendto(sk,cmd_send,strlen(cmd_send),0,(struct sockaddr*)&remote,sizeof(remote));// back cmd msg
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
@@ -138,19 +133,14 @@ int main(int argc, char *argv[])
 					server_state=WAITING;
 					break;
 				}
-<<<<<<< HEAD
 				const char* filename_send;
 				int get=getDirectory(Dir,backup_file);
 				server.size=backup_file.size();
-=======
->>>>>>> b5d3745270629093204a7aa08625140c42c706ad
 				const char* size_send=to_string(server.size).c_str();
 				sendto(sk,size_send,strlen(size_send),0,(struct sockaddr*)&remote,sizeof(remote));// back size msg
 				if(!server.size)
 					cout << " - Server backup folder is empty.\n";
 				else{
-					const char* filename_send;
-					int get=getDirectory(Dir,backup_file);
 					for(int i=0;i<server.size;i++){
 						cout << " - filename: " << backup_file[i] << "\n";
 						filename_send=backup_file[i].c_str();
@@ -377,8 +367,6 @@ int main(int argc, char *argv[])
 				string name;
 				//read the filename from client
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
-				if(mesglen<0){
-					perror("receive failed");}
 				buf[mesglen]='\0';
 				name=string(buf);
 				strcpy(server.filename,name.c_str());
