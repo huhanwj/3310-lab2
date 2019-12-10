@@ -108,10 +108,18 @@ int main(int argc, char *argv[])
 				}
 				else if(in_cmd == "remove")
 				{
+					client.cmd=CMD_REMOVE;
+					const char* convert_cmd=to_string(client.cmd).c_str();
+					// send the command to the remote side
+					sendto(sock,convert_cmd,strlen(convert_cmd),0,(struct sockaddr*)&remote,sizeof(remote));
 					client_state = PROCESS_REMOVE;
 				}
 				else if(in_cmd == "shutdown")
 				{
+					client.cmd=CMD_SHUTDOWN;
+					const char* convert_cmd=to_string(client.cmd).c_str();
+					// send the command to the remote side
+					sendto(sock,convert_cmd,strlen(convert_cmd),0,(struct sockaddr*)&remote,sizeof(remote));
 					client_state = SHUTDOWN;
 				}
 				else if(in_cmd == "quit")
@@ -329,15 +337,67 @@ int main(int argc, char *argv[])
 			}
 			case PROCESS_REMOVE:
 			{	           
+				const char* filename_send;
+				cin>>client.filename;
+				filename_send=client.filename;
+				sendto(sock,filename_send,strlen(filename_send),0,(struct sockaddr*)&remote,sizeof(remote));
+				//read the back ACK
+				msglen=read(sock,buf,BUFLEN);
+				buf[msglen]='\0';
+				if(atoi(buf)!=CMD_ACK){
+					cout << " - error or incorrect response from server.\n";
+					client.error=1;
+					const char* error_terminate=to_string(client.error).c_str();
+					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client_state=WAITING;
+					break;
+				}
+				else{
+					client.error=0;
+					const char* error_terminate=to_string(client.error).c_str();
+					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+				}
+				//after receiving ACK, read the error message
+				msglen=read(sock,buf,BUFLEN);
+				buf[msglen]='\0';
+				client.error=atoi(buf);
+				if(client.error>1){// error=3
+					cout<<" - server error. remove failed.\n";
+				}
+				else if(client.error==1){//error=1
+					cout<<" - file doesn't exist.\n";
+				}
+				else{//error=0
+					cout<<" - file is removed.\n";
+				}
 				client_state = WAITING;
 				break;
 			}	
 			case SHUTDOWN:
 			{	            
+				//read the back ACK
+				msglen=read(sock,buf,BUFLEN);
+				buf[msglen]='\0';
+				if(atoi(buf)!=CMD_ACK){
+					cout << " - error or incorrect response from server.\n";
+					client.error=1;
+					const char* error_terminate=to_string(client.error).c_str();
+					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client_state=WAITING;
+					break;
+				}
+				else{
+					client.error=0;
+					const char* error_terminate=to_string(client.error).c_str();
+					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					cout<<" - server is shutdown.\n";
+					close(sock);
+				}
 				break;	            
 			}
 			case QUIT:
 			{	         
+				exit(0);
 			}
 			default:
 			{

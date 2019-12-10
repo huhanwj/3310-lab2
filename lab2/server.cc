@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 			case WAITING:
 			{
 				server.cmd=0;
-				cout << "Waiting UDP Command @: " << udp_port;
+				cout << "Waiting UDP Command @: " << udp_port<<"\n";
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
 				server.cmd=atoi(buf);
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
 					buf[mesglen]='\0';
 					server.size=atoi(buf);
 					cout<<" - filesize: "<<server.size<<"\n";
-					exist=checkFile(server.filename);
+					exist=checkFile((string("./backup/")+string(server.filename)).c_str());
 					const char* error_back; // existance checking msg
 					const char* cmd_back; // existance checking condition
 					if(exist){
@@ -215,7 +215,8 @@ int main(int argc, char *argv[])
 					}
 					error_back=to_string(server.error).c_str();// send back the error=0
 					sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));
-					FILE* backup=fopen((string("./backup")+string(server.filename)).c_str(),"w+");// open a new file in backup dir
+					// open a new file in backup dir
+					FILE* backup=fopen((string("./backup/")+string(server.filename)).c_str(),"w+");
 					if(!backup){
 						cout <<"open file "<<server.filename<<" error.\n";
 						server.error=1;
@@ -336,11 +337,87 @@ int main(int argc, char *argv[])
 			}
 			case PROCESS_REMOVE:
 			{
+				const char* ACK_back;
+				const char* ACK_error;
+				//read the filename from client
+				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+				buf[mesglen]='\0';
+				strcpy(buf,server.filename);
+				//check for existance
+				bool exist=checkFile((string("./backup/")+string(server.filename)).c_str());
+				if(exist){
+					//remove result
+					int result=remove((string("./backup/")+string(server.filename)).c_str());
+					//send ACK back
+					server.cmd=CMD_ACK;
+					ACK_back=to_string(server.cmd).c_str();
+					// error checking if client not receiving ACK
+					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+					if(atoi(buf)==1){
+						cout <<" - connection failed!\n";
+						server_state=WAITING;
+						break;
+					}
+					//remove success?
+					if(result<0){
+						server.error=3; //remove failed
+						cout<<" - remove error.\n";
+						// send the remove result to client
+						ACK_error=to_string(server.error).c_str();
+						sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
+						cout<<" - send acknowledgement.\n";
+					}
+					else{
+						server.error=0;//remove succeed
+						cout << "./backup/"<<server.filename<< " has been removed.\n";
+						// send the remove result to client
+						ACK_error=to_string(server.error).c_str();
+						sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
+						cout<<" - send acknowledgement.\n";
+					}
+				}
+				else{
+					//send ACK back
+					server.cmd=CMD_ACK;
+					ACK_back=to_string(server.cmd).c_str();
+					// error checking if client not receiving ACK
+					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+					if(atoi(buf)==1){
+						cout <<" - connection failed!\n";
+						server_state=WAITING;
+						break;
+					}
+					server.error=1;//file not exist
+					cout << " - file doesn't exist.\n";
+					// send the remove result to client
+					ACK_error=to_string(server.error).c_str();
+					sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
+					cout<<" - send acknowledgement.\n";
+				}
 				server_state = WAITING;
 				break;
 			}
 			case SHUTDOWN:
 			{
+				const char* ACK_back;
+				const char* ACK_error;
+				server.cmd=CMD_ACK;
+				//send ACK back
+				server.cmd=CMD_ACK;
+				ACK_back=to_string(server.cmd).c_str();
+				// error checking if client not receiving ACK
+				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+				if(atoi(buf)==1){
+					cout <<" - connection failed!\n";
+					server_state=WAITING;
+					break;
+				}
+				else{
+					cout<<" - send acknowledgement.\n";
+					close(sk);
+					exit(0);
+				}
+
 			}
 			default:
 			{

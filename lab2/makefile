@@ -1,4 +1,4 @@
-all:server client test
+all:server client
 
 server: server.cc message.h
 	g++ server.cc -g -o server
