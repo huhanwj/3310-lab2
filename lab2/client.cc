@@ -279,6 +279,7 @@ int main(int argc, char *argv[])
 					msglen=read(sock,buf,BUFLEN);//get the allocated port number from the server
 					buf[msglen]='\0';
 					client.port=atoi(buf);
+					cout<<"received port: "<<buf<<"\n";
 					msglen=read(sock,buf,BUFLEN);//check if server socket accept failed
 					buf[msglen]='\0';
 					if(atoi(buf)==1){
