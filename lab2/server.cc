@@ -70,8 +70,13 @@ int main(int argc, char *argv[])
 	getsockname(sk,(struct sockaddr *)&local, &local_len) ;
 	// cout << "socket has addr " << local.sin_addr .s_addr << "\n" ;
 	int check=checkDirectory(Dir); //create the backup directory
-	vector<string> backup_file; //list of the backup files
 	Cmd_Msg_T server;
+	Cmd_Msg_T remake;
+	remake.cmd=0;
+	remake.error=0;
+	remake.port=0;
+	remake.size=0;
+	strcpy(remake.filename,"");
 	while(true)
 	{
 		usleep(100);
@@ -118,7 +123,7 @@ int main(int argc, char *argv[])
 			}
 			case PROCESS_LS:
 			{
-				server.size=backup_file.size();
+				vector<string> backup_file; //list of the backup files
 				const char* cmd_send=to_string(server.cmd).c_str();
 				sendto(sk,cmd_send,strlen(cmd_send),0,(struct sockaddr*)&remote,sizeof(remote));// back cmd msg
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
@@ -128,12 +133,13 @@ int main(int argc, char *argv[])
 					server_state=WAITING;
 					break;
 				}
-				const char* size_send=to_string(server.size).c_str();
-				sendto(sk,size_send,strlen(size_send),0,(struct sockaddr*)&remote,sizeof(remote));// back size msg
 				const char* filename_send;
 				int get=getDirectory(Dir,backup_file);
+				server.size=backup_file.size();
+				const char* size_send=to_string(server.size).c_str();
+				sendto(sk,size_send,strlen(size_send),0,(struct sockaddr*)&remote,sizeof(remote));// back size msg
 				if(!server.size)
-					cout << " - Server backup folder is empty.";
+					cout << " - Server backup folder is empty.\n";
 				else{
 					for(int i=0;i<server.size;i++){
 						cout << " - filename: " << backup_file[i] << "\n";
@@ -141,6 +147,7 @@ int main(int argc, char *argv[])
 						sendto(sk,filename_send,strlen(filename_send),0,(struct sockaddr*)&remote,sizeof(remote));
 					}
 				}
+				server=remake;
 				server_state = WAITING;
 				break;
 			}
@@ -201,7 +208,21 @@ int main(int argc, char *argv[])
 							break;
 						}
 						else
-							cout<<" - overwrite the file";
+							cout<<" - overwrite the file.\n";
+					}
+					else{
+						server.cmd=CMD_SEND;
+						cmd_back=to_string(server.cmd).c_str();// sending back the condition
+						sendto(sk,cmd_back,strlen(cmd_back),0,(struct sockaddr*)&remote,sizeof(remote));
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);// error checking
+						buf[mesglen]='\0';
+						if(atoi(buf)==1){
+							cout << " - error or incorrect command from client.\n";
+							server_state=WAITING;
+							break;
+						}
+						error_back=to_string(server.error).c_str();// send back the error=0
+						sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));
 					}
 					cmd_back=to_string(server.cmd).c_str();// sending back the condition
 					sendto(sk,cmd_back,strlen(cmd_back),0,(struct sockaddr*)&remote,sizeof(remote));
@@ -251,10 +272,13 @@ int main(int argc, char *argv[])
 						listen(tcp, 1);
 						cout <<" - listen @: " << server.port <<"\n";
 						// wait for connection request, then close old socket
-						tcp2 = accept(tcp, (struct sockaddr *)0, (socklen_t *)0) ;
+						tcp2 = accept(tcp, (struct sockaddr *)0, (socklen_t*)0) ;
+						cout<<"fuck\n";
 						close(tcp);
+						cout<<"fuck\n";
+						cout<<tcp2<<'\n';
 						//accept failed
-						if(tcp2=-1){ 
+						if(tcp2==-1){ 
 							cout << " - server connection failed!\n";
 							server.error=1;
 							fclose(backup);
@@ -265,7 +289,6 @@ int main(int argc, char *argv[])
 						}
 						//accept succeeded
 						else{
-							cout << " - connected with the client.\n";
 							server.error=0;
 							error_back=to_string(server.error).c_str();
 							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=0
@@ -279,6 +302,9 @@ int main(int argc, char *argv[])
 							close(tcp2);
 							server_state=WAITING;
 							break;
+						}
+						else{
+							cout<<" - connected with client.\n";
 						}
 						// receive and write the file
 						bool keepwrite=true;
@@ -338,10 +364,12 @@ int main(int argc, char *argv[])
 			{
 				const char* ACK_back;
 				const char* ACK_error;
+				string name;
 				//read the filename from client
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
-				strcpy(buf,server.filename);
+				name=string(buf);
+				strcpy(server.filename,name.c_str());
 				//check for existance
 				bool exist=checkFile((string("./backup/")+string(server.filename)).c_str());
 				if(exist){
@@ -350,6 +378,7 @@ int main(int argc, char *argv[])
 					//send ACK back
 					server.cmd=CMD_ACK;
 					ACK_back=to_string(server.cmd).c_str();
+					sendto(sk,ACK_back,strlen(ACK_back),0,(struct sockaddr*)&remote,sizeof(remote));
 					// error checking if client not receiving ACK
 					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 					if(atoi(buf)==1){
@@ -368,7 +397,7 @@ int main(int argc, char *argv[])
 					}
 					else{
 						server.error=0;//remove succeed
-						cout << "./backup/"<<server.filename<< " has been removed.\n";
+						cout << " - ./backup/"<<server.filename<< " has been removed.\n";
 						// send the remove result to client
 						ACK_error=to_string(server.error).c_str();
 						sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
@@ -379,6 +408,7 @@ int main(int argc, char *argv[])
 					//send ACK back
 					server.cmd=CMD_ACK;
 					ACK_back=to_string(server.cmd).c_str();
+					sendto(sk,ACK_back,strlen(ACK_back),0,(struct sockaddr*)&remote,sizeof(remote));
 					// error checking if client not receiving ACK
 					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 					if(atoi(buf)==1){
@@ -402,8 +432,8 @@ int main(int argc, char *argv[])
 				const char* ACK_error;
 				server.cmd=CMD_ACK;
 				//send ACK back
-				server.cmd=CMD_ACK;
 				ACK_back=to_string(server.cmd).c_str();
+				sendto(sk,ACK_back,strlen(ACK_back),0,(struct sockaddr*)&remote,sizeof(remote));
 				// error checking if client not receiving ACK
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				if(atoi(buf)==1){
