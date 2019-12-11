@@ -21,6 +21,8 @@
 #define BUFLEN 256
 using namespace std;
 
+
+// THIS CLIENT HAS TCP BUFFER SIZE 1000 
 int main(int argc, char *argv[])
 {
 	unsigned short udp_port = 0;

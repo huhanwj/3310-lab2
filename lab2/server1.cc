@@ -22,6 +22,8 @@
 
 using namespace std;
 
+
+//THIS SERVER HAS TCP BUFFERSIZE 1000
 Server_State_T server_state;
 string cmd_string[] = {" ", "CMD_LS", "CMD_SEND","CMD_GET","CMD_REMOVE", "CMD_SHUTDOWN"};
 
