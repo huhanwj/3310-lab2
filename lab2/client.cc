@@ -20,7 +20,7 @@
 #include "client.h"
 #define BUFLEN 256
 using namespace std;
-
+//TCP buffer size 3000
 int main(int argc, char *argv[])
 {
 	unsigned short udp_port = 0;

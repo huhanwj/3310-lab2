@@ -21,7 +21,7 @@
 #define Dir "backup"
 
 using namespace std;
-
+//TCP buffer size = 3000
 Server_State_T server_state;
 string cmd_string[] = {" ", "CMD_LS", "CMD_SEND","CMD_GET","CMD_REMOVE", "CMD_SHUTDOWN"};
 
