@@ -291,22 +291,27 @@ int main(int argc, char *argv[])
 					tp=gethostbyname(server_host);//get the address 
 					memcpy(&tcp_remote.sin_addr,tp->h_addr,tp->h_length) ;//store the address
 					tcp_remote.sin_port=client.port;
-					msglen=read(sock,buf,BUFLEN);//check if server socket accept failed
-					buf[msglen]='\0';
-					if(atoi(buf)==1){
-						cout<<"send error 5\n";
-						cout << " - error or incorrect response from server.\n";
-						fclose(upload_file);
-						client_state=WAITING;
-						break;
-					}
 					//connect to server 
 					if(connect(tcp,(struct sockaddr*)&tcp_remote,sizeof(tcp_remote))<0){//connection failed
 						cout << " - connection error!\n";
 						close(tcp);
 						client.error=1;
-						const char* error_terminate=to_string(client.error).c_str();//send error
+						const char* error_terminate=to_string(client.error).c_str();//send error=1
 						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
+					else{
+						client.error=0;
+						const char* error_terminate=to_string(client.error).c_str();//send error=0
+						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					}
+					msglen=read(sock,buf,BUFLEN);//check if server socket accept failed
+					buf[msglen]='\0';
+					if(atoi(buf)==1){
+						cout<<"send error 5\n";
+						cout << " - error or incorrect response from server.\n";
 						fclose(upload_file);
 						client_state=WAITING;
 						break;
@@ -319,7 +324,8 @@ int main(int argc, char *argv[])
 							tcp_buf[tcp_msglen]='\0';
 							keepread=false;
 						}
-						write(tcp,tcp_buf,tcp_msglen);
+						int writelen=write(tcp,tcp_buf,tcp_msglen);
+						cout<< "send bytes:"<<writelen<<"\n";
 					}
 					fclose(upload_file);
 					close(tcp);
