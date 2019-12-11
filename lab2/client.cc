@@ -279,7 +279,6 @@ int main(int argc, char *argv[])
 					msglen=read(sock,buf,BUFLEN);//get the allocated port number from the server
 					buf[msglen]='\0';
 					client.port=atoi(buf);
-					cout<<"received port: "<<buf<<"\n";
 					cout <<" - TCP port: "<<client.port<<"\n";
 					int tcp; //socket descriptor
 					sockaddr_in tcp_remote; //socket address for remote side
@@ -324,7 +323,7 @@ int main(int argc, char *argv[])
 							tcp_buf[tcp_msglen]='\0';
 							keepread=false;
 						}
-						int writelen=write(tcp,tcp_buf,tcp_msglen);
+						int writelen=send(tcp,tcp_buf,tcp_msglen,0);
 						cout<< "send bytes:"<<writelen<<"\n";
 					}
 					fclose(upload_file);
