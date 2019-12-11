@@ -305,7 +305,7 @@ int main(int argc, char *argv[])
 						// receive and write the file
 						bool keepwrite=true;
 						while(keepwrite){
-							tcp_mesglen=read(tcp2,tcp_buf,DATA_BUF_LEN);
+							tcp_mesglen=recv(tcp2,tcp_buf,sizeof(tcp_buf),0);
 							cout << " - total bytes received: "<<tcp_mesglen<<"\n";
 							//if any message reception error happened, break the loop
 							if(tcp_mesglen<0){
