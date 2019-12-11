@@ -280,15 +280,6 @@ int main(int argc, char *argv[])
 					buf[msglen]='\0';
 					client.port=atoi(buf);
 					cout<<"received port: "<<buf<<"\n";
-					msglen=read(sock,buf,BUFLEN);//check if server socket accept failed
-					buf[msglen]='\0';
-					if(atoi(buf)==1){
-						cout<<"send error 5\n";
-						cout << " - error or incorrect response from server.\n";
-						fclose(upload_file);
-						client_state=WAITING;
-						break;
-					}
 					cout <<" - TCP port: "<<client.port<<"\n";
 					int tcp; //socket descriptor
 					sockaddr_in tcp_remote; //socket address for remote side
@@ -300,6 +291,15 @@ int main(int argc, char *argv[])
 					tp=gethostbyname(server_host);//get the address 
 					memcpy(&tcp_remote.sin_addr,tp->h_addr,tp->h_length) ;//store the address
 					tcp_remote.sin_port=client.port;
+					msglen=read(sock,buf,BUFLEN);//check if server socket accept failed
+					buf[msglen]='\0';
+					if(atoi(buf)==1){
+						cout<<"send error 5\n";
+						cout << " - error or incorrect response from server.\n";
+						fclose(upload_file);
+						client_state=WAITING;
+						break;
+					}
 					//connect to server 
 					if(connect(tcp,(struct sockaddr*)&tcp_remote,sizeof(tcp_remote))<0){//connection failed
 						cout << " - connection error!\n";

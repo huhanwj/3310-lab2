@@ -256,7 +256,6 @@ int main(int argc, char *argv[])
 						char tcp_retbuf[DATA_BUF_LEN]; //buffer to remote
 						int tcp_rlen = sizeof(tcp_remote) ; // length of remote address
 						socklen_t tcp_len = sizeof(tcp_local) ; // length of local address
-						int moredata = 1 ; // keep processing or quit
 						int tcp_mesglen ; // actual length of message
 						tcp=socket(AF_INET,SOCK_STREAM,0);// create the socket
 						tcp_local.sin_family = AF_INET ; // internet family
