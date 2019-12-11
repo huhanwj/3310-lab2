@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 			case WAITING:
 			{
 				server.cmd=0;
-				cout << "Waiting UDP Command @: " << local.sin_port<<"\n";
+				cout << " - Waiting UDP Command @: " << local.sin_port<<"\n";
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
 				server.cmd=atoi(buf);
@@ -271,9 +271,21 @@ int main(int argc, char *argv[])
 						listen(tcp, 1);
 						cout <<" - listen @: " << server.port <<"\n";
 						// wait for connection request, then close old socket
+						// error checking if client tcp connection failed
+						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
+						buf[mesglen]='\0';
+						if(atoi(buf)==1){
+							cout << " - client connection failed!\n";
+							fclose(backup);
+							close(tcp2);
+							server_state=WAITING;
+							break;
+						}
+						else{
+							cout<<" - connected with client.\n";
+						}
 						tcp2 = accept(tcp, (struct sockaddr *)0, (socklen_t*)0) ;
 						close(tcp);
-						cout<<tcp2<<'\n';
 						//accept failed
 						if(tcp2==-1){ 
 							cout << " - server connection failed!\n";
@@ -289,19 +301,6 @@ int main(int argc, char *argv[])
 							server.error=0;
 							error_back=to_string(server.error).c_str();
 							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=0
-						}
-						// error checking if client tcp connection failed
-						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
-						buf[mesglen]='\0';
-						if(atoi(buf)==1){
-							cout << " - client connection failed!\n";
-							fclose(backup);
-							close(tcp2);
-							server_state=WAITING;
-							break;
-						}
-						else{
-							cout<<" - connected with client.\n";
 						}
 						// receive and write the file
 						bool keepwrite=true;
@@ -339,13 +338,13 @@ int main(int argc, char *argv[])
 							server.error=0;
 							ACK_error=to_string(server.error).c_str();
 							sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
-							cout<<"send acknowledgement.\n";	
+							cout<<" - send acknowledgement.\n";	
 						}
 						else{
 							server.error=1;
 							ACK_error=to_string(server.error).c_str();
 							sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
-							cout<<"send acknowledgement.\n";	
+							cout<<" - send acknowledgement.\n";	
 						}
 					}
 				}
