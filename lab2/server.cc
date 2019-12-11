@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 			case WAITING:
 			{
 				server.cmd=0;
-				cout << " - Waiting UDP Command @: " << local.sin_port<<"\n";
+				cout << "Waiting UDP Command @: " << local.sin_port<<"\n";
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
 				server.cmd=atoi(buf);

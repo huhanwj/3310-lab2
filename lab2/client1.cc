@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
 					cout <<" - TCP port: "<<client.port<<"\n";
 					int tcp; //socket descriptor
 					sockaddr_in tcp_remote; //socket address for remote side
-					char tcp_buf[DATA_BUF_LEN];//buffer for response from remote
+					char tcp_buf[DATA_BUF_LEN/3];//buffer for response from remote
 					hostent *tp; //address for remote host;
 					int tcp_msglen;//length of the message
 					tcp=socket(AF_INET,SOCK_STREAM,0);//create the socket
@@ -312,8 +312,8 @@ int main(int argc, char *argv[])
 					bool keepread=true;
 					//read and send the file
 					while(keepread){
-						tcp_msglen=fread(tcp_buf,sizeof(char),DATA_BUF_LEN,upload_file);
-						if(tcp_msglen<DATA_BUF_LEN){
+						tcp_msglen=fread(tcp_buf,sizeof(char),DATA_BUF_LEN/3,upload_file);
+						if(tcp_msglen<DATA_BUF_LEN/3){
 							tcp_buf[tcp_msglen]='\0';
 							keepread=false;
 						}
