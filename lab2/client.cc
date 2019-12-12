@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 	// get the address from the remote host and store
 	hp=gethostbyname(server_host);
 	memcpy(&remote.sin_addr, hp->h_addr, hp->h_length);
-	remote.sin_port=udp_port;
+	remote.sin_port=htons(udp_port);
 	Client_State_T client_state = WAITING;
 	string in_cmd;
 	Cmd_Msg_T client;
