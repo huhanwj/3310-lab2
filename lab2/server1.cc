@@ -21,9 +21,7 @@
 #define Dir "backup"
 
 using namespace std;
-
-
-//THIS SERVER HAS TCP BUFFERSIZE 1000
+//TCP buffer size = 3000
 Server_State_T server_state;
 string cmd_string[] = {" ", "CMD_LS", "CMD_SEND","CMD_GET","CMD_REMOVE", "CMD_SHUTDOWN"};
 
@@ -87,7 +85,7 @@ int main(int argc, char *argv[])
 			case WAITING:
 			{
 				server.cmd=0;
-				cout << " - Waiting UDP Command @: " << local.sin_port<<"\n";
+				cout << "Waiting UDP Command @: " << local.sin_port<<"\n";
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				buf[mesglen]='\0';
 				server.cmd=atoi(buf);
@@ -132,6 +130,7 @@ int main(int argc, char *argv[])
 				buf[mesglen]='\0';
 				if(atoi(buf)==1){
 					cout << " - error or incorrect command from client.\n";
+					server=remake;
 					server_state=WAITING;
 					break;
 				}
@@ -180,6 +179,7 @@ int main(int argc, char *argv[])
 						buf[mesglen]='\0';
 						if(atoi(buf)==1){
 							cout << " - error or incorrect command from client.\n";
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -193,6 +193,7 @@ int main(int argc, char *argv[])
 							server.error=1;
 							error_back=to_string(server.error).c_str();
 							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -206,6 +207,7 @@ int main(int argc, char *argv[])
 						server.error=atoi(buf);
 						if(server.error==2){//not to overwrite
 							cout<<" - do not overwrite.\n";
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -220,6 +222,7 @@ int main(int argc, char *argv[])
 						buf[mesglen]='\0';
 						if(atoi(buf)==1){
 							cout << " - error or incorrect command from client.\n";
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -232,6 +235,7 @@ int main(int argc, char *argv[])
 					buf[mesglen]='\0';
 					if(atoi(buf)==1){
 						cout << " - error or incorrect command from client.\n";
+						server=remake;
 						server_state=WAITING;
 						break;
 					}
@@ -244,6 +248,7 @@ int main(int argc, char *argv[])
 						server.error=1;
 						error_back=to_string(server.error).c_str();
 						sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
+						server=remake;
 						server_state=WAITING;
 						break;
 					}
@@ -255,7 +260,7 @@ int main(int argc, char *argv[])
 						sockaddr_in tcp_remote; // socket address for remote
 						sockaddr_in tcp_local; // socket address for us
 						char tcp_buf[DATA_BUF_LEN/3]; // buffer from remote
-						char tcp_retbuf[DATA_BUF_LEN]; //buffer to remote
+						char tcp_retbuf[DATA_BUF_LEN/3]; //buffer to remote
 						int tcp_rlen = sizeof(tcp_remote) ; // length of remote address
 						socklen_t tcp_len = sizeof(tcp_local) ; // length of local address
 						int tcp_mesglen ; // actual length of message
@@ -280,6 +285,7 @@ int main(int argc, char *argv[])
 							cout << " - client connection failed!\n";
 							fclose(backup);
 							close(tcp2);
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -295,6 +301,7 @@ int main(int argc, char *argv[])
 							fclose(backup);
 							error_back=to_string(server.error).c_str();
 							sendto(sk,error_back,strlen(error_back),0,(struct sockaddr*)&remote,sizeof(remote));// send error=1
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -307,8 +314,10 @@ int main(int argc, char *argv[])
 						// receive and write the file
 						bool keepwrite=true;
 						while(keepwrite){
+							unsigned long received=0;
 							tcp_mesglen=recv(tcp2,tcp_buf,sizeof(tcp_buf),0);
-							cout << " - total bytes received: "<<tcp_mesglen<<"\n";
+							received+=tcp_mesglen;
+							cout << " - total bytes received: "<<received<<"\n";
 							//if any message reception error happened, break the loop
 							if(tcp_mesglen<0){
 								cout << " - message reception error.\n";
@@ -319,6 +328,7 @@ int main(int argc, char *argv[])
 								keepwrite=false;
 							}
 							fwrite(tcp_buf,sizeof(char),tcp_mesglen,backup);
+							usleep(1000);
 						}
 						fclose(backup);
 						close(tcp2);
@@ -331,6 +341,7 @@ int main(int argc, char *argv[])
 						mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 						if(atoi(buf)==1){
 							cout <<" - connection failed!\n";
+							server=remake;
 							server_state=WAITING;
 							break;
 						}
@@ -352,9 +363,11 @@ int main(int argc, char *argv[])
 				}
 				else{// file open error at client side
 					cout << " - file open failure at client side.\n";
+					server=remake;
 					server_state=WAITING;
 					break;
 				}
+				server=remake;
 				server_state = WAITING;
 				break;
 			}
@@ -381,6 +394,7 @@ int main(int argc, char *argv[])
 					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 					if(atoi(buf)==1){
 						cout <<" - connection failed!\n";
+						server=remake;
 						server_state=WAITING;
 						break;
 					}
@@ -411,6 +425,7 @@ int main(int argc, char *argv[])
 					mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 					if(atoi(buf)==1){
 						cout <<" - connection failed!\n";
+						server=remake;
 						server_state=WAITING;
 						break;
 					}
@@ -421,6 +436,7 @@ int main(int argc, char *argv[])
 					sendto(sk,ACK_error,strlen(ACK_error),0,(struct sockaddr*)&remote,sizeof(remote));
 					cout<<" - send acknowledgement.\n";
 				}
+				server=remake;
 				server_state = WAITING;
 				break;
 			}
@@ -436,6 +452,7 @@ int main(int argc, char *argv[])
 				mesglen=recvfrom(sk,buf,256,0,(struct sockaddr *)&remote, &rlen);
 				if(atoi(buf)==1){
 					cout <<" - connection failed!\n";
+					server=remake;
 					server_state=WAITING;
 					break;
 				}

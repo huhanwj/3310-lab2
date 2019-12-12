@@ -20,9 +20,7 @@
 #include "client.h"
 #define BUFLEN 256
 using namespace std;
-
-
-// THIS CLIENT HAS TCP BUFFER SIZE 1000 
+//TCP buffer size 1000
 int main(int argc, char *argv[])
 {
 	unsigned short udp_port = 0;
@@ -81,6 +79,11 @@ int main(int argc, char *argv[])
 	string in_cmd;
 	Cmd_Msg_T client;
 	Cmd_Msg_T remake;
+	remake.cmd=0;
+	remake.error=0;
+	remake.port=0;
+	remake.size=0;
+	strcpy(remake.filename,"");
 	while(true)
 	{
 		usleep(100);
@@ -229,9 +232,9 @@ int main(int argc, char *argv[])
 						msglen=read(sock,buf,BUFLEN);//check if error=1, cmd back is not send
 						buf[msglen]='\0';
 						if(atoi(buf)==1){
+							cout<<"send error 2\n";
 							cout << " - error or incorrect response from server.\n";
 							fclose(upload_file);
-							client=remake;
 							client_state=WAITING;
 							break;
 						}
@@ -239,7 +242,6 @@ int main(int argc, char *argv[])
 						sendto(sock,overwrite_de,strlen(overwrite_de),0,(struct sockaddr*)&remote,sizeof(remote));
 						if(client.error==2){//not to overwrite
 							fclose(upload_file);
-							client=remake;
 							client_state=WAITING;
 							break;
 						}
@@ -327,8 +329,8 @@ int main(int argc, char *argv[])
 							tcp_buf[tcp_msglen]='\0';
 							keepread=false;
 						}
-						if(send(tcp,tcp_buf,tcp_msglen,0)<0)
-							perror("failed");
+						send(tcp,tcp_buf,tcp_msglen,0);
+						usleep(1000);
 					}
 					fclose(upload_file);
 					close(tcp);
@@ -382,6 +384,7 @@ int main(int argc, char *argv[])
 					client.error=1;
 					const char* error_terminate=to_string(client.error).c_str();
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client=remake;
 					client_state=WAITING;
 					break;
 				}
@@ -403,6 +406,7 @@ int main(int argc, char *argv[])
 				else{//error=0
 					cout<<" - file is removed.\n";
 				}
+				client=remake;
 				client_state = WAITING;
 				break;
 			}	
@@ -416,6 +420,7 @@ int main(int argc, char *argv[])
 					client.error=1;
 					const char* error_terminate=to_string(client.error).c_str();
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client=remake;
 					client_state=WAITING;
 					break;
 				}
@@ -425,6 +430,7 @@ int main(int argc, char *argv[])
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
 					cout<<" - server is shutdown.\n";
 				}
+				client=remake;
 				client_state=WAITING;
 				break;	            
 			}

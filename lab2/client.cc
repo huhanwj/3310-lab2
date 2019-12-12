@@ -79,6 +79,11 @@ int main(int argc, char *argv[])
 	string in_cmd;
 	Cmd_Msg_T client;
 	Cmd_Msg_T remake;
+	remake.cmd=0;
+	remake.error=0;
+	remake.port=0;
+	remake.size=0;
+	strcpy(remake.filename,"");
 	while(true)
 	{
 		usleep(100);
@@ -142,6 +147,7 @@ int main(int argc, char *argv[])
 					client.error=1;
 					const char* error_terminate=to_string(client.error).c_str();
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client=remake;
 					client_state=WAITING;
 					break;
 				}
@@ -201,6 +207,7 @@ int main(int argc, char *argv[])
 						const char* error_terminate=to_string(client.error).c_str();
 						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
 						fclose(upload_file);
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -247,6 +254,7 @@ int main(int argc, char *argv[])
 						const char* error_terminate=to_string(client.error).c_str();
 						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
 						fclose(upload_file);
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -260,6 +268,7 @@ int main(int argc, char *argv[])
 					if(atoi(buf)==1){
 						cout << " - error or incorrect response from server.\n";
 						fclose(upload_file);
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -268,6 +277,7 @@ int main(int argc, char *argv[])
 					if(atoi(buf)==1){
 						cout << " - error or incorrect response from server.\n";
 						fclose(upload_file);
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -293,6 +303,7 @@ int main(int argc, char *argv[])
 						const char* error_terminate=to_string(client.error).c_str();//send error=1
 						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
 						fclose(upload_file);
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -306,6 +317,7 @@ int main(int argc, char *argv[])
 					if(atoi(buf)==1){
 						cout << " - error or incorrect response from server.\n";
 						fclose(upload_file);
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -318,6 +330,7 @@ int main(int argc, char *argv[])
 							keepread=false;
 						}
 						send(tcp,tcp_buf,tcp_msglen,0);
+						usleep(1000);
 					}
 					fclose(upload_file);
 					close(tcp);
@@ -330,6 +343,7 @@ int main(int argc, char *argv[])
 						client.error=1;
 						const char* error_terminate=to_string(client.error).c_str();
 						sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+						client=remake;
 						client_state=WAITING;
 						break;
 					}
@@ -370,6 +384,7 @@ int main(int argc, char *argv[])
 					client.error=1;
 					const char* error_terminate=to_string(client.error).c_str();
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client=remake;
 					client_state=WAITING;
 					break;
 				}
@@ -391,6 +406,7 @@ int main(int argc, char *argv[])
 				else{//error=0
 					cout<<" - file is removed.\n";
 				}
+				client=remake;
 				client_state = WAITING;
 				break;
 			}	
@@ -404,6 +420,7 @@ int main(int argc, char *argv[])
 					client.error=1;
 					const char* error_terminate=to_string(client.error).c_str();
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
+					client=remake;
 					client_state=WAITING;
 					break;
 				}
@@ -413,6 +430,7 @@ int main(int argc, char *argv[])
 					sendto(sock,error_terminate,strlen(error_terminate),0,(struct sockaddr*)&remote,sizeof(remote));
 					cout<<" - server is shutdown.\n";
 				}
+				client=remake;
 				client_state=WAITING;
 				break;	            
 			}
