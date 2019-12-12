@@ -323,12 +323,11 @@ int main(int argc, char *argv[])
 								cout << " - message reception error.\n";
 								break;
 							}
-							if(tcp_mesglen<DATA_BUF_LEN){
+							if(received==server.size){
 								tcp_buf[tcp_mesglen]='\0';
 								keepwrite=false;
 							}
 							fwrite(tcp_buf,sizeof(char),tcp_mesglen,backup);
-							usleep(1000);
 						}
 						fclose(backup);
 						close(tcp2);

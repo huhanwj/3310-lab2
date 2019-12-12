@@ -329,8 +329,10 @@ int main(int argc, char *argv[])
 							tcp_buf[tcp_msglen]='\0';
 							keepread=false;
 						}
-						send(tcp,tcp_buf,tcp_msglen,0);
-						usleep(1000);
+						if(send(tcp,tcp_buf,tcp_msglen,MSG_NOSIGNAL)<0){
+							perror("connection fucked");
+						}
+						
 					}
 					fclose(upload_file);
 					close(tcp);
