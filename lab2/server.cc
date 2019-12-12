@@ -313,8 +313,8 @@ int main(int argc, char *argv[])
 						}
 						// receive and write the file
 						bool keepwrite=true;
+						unsigned long received=0;
 						while(keepwrite){
-							unsigned long received=0;
 							tcp_mesglen=recv(tcp2,tcp_buf,sizeof(tcp_buf),0);
 							received+=tcp_mesglen;
 							cout << " - total bytes received: "<<received<<"\n";

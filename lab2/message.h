@@ -5,7 +5,7 @@
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
 
-#define DATA_BUF_LEN 3000
+#define DATA_BUF_LEN 1024
 #define FILE_NAME_LEN 128
 
 typedef struct DATA_MSG_tag
